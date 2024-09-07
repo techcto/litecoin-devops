@@ -1,0 +1,39 @@
+[Unit]
+Description=Litecoin daemon
+
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/litecoind -daemon \
+                            -pid=/run/litecoind/litecoind.pid \
+                            -conf=/etc/litecoin/litecoin.conf \
+                            -datadir=/var/lib/litecoind
+
+PermissionsStartOnly=true
+ExecStartPre=/bin/chgrp litecoin /etc/litecoin
+
+Type=forking
+PIDFile=/run/litecoind/litecoind.pid
+Restart=on-failure
+#TimeoutStartSec=infinity
+TimeoutStopSec=600
+
+User=litecoin
+Group=litecoin
+
+RuntimeDirectory=litecoind
+RuntimeDirectoryMode=0710
+ConfigurationDirectory=litecoin
+ConfigurationDirectoryMode=0710
+StateDirectory=litecoind
+StateDirectoryMode=0710
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=true
+PrivateDevices=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

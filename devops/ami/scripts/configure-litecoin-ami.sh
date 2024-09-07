@@ -6,6 +6,10 @@ EC2_AVAIL_ZONE="`wget -q -O - http://169.254.169.254/latest/meta-data/placement/
 test -n "$EC2_AVAIL_ZONE" || die 'cannot obtain availability-zone'
 EC2_REGION="\`echo "$EC2_AVAIL_ZONE" | sed -e 's:\([0-9][0-9]*\)[a-z]*\$:\\1:'\`"
 
+wget https://raw.githubusercontent.com/bitcoin/bitcoin/master/share/rpcauth/rpcauth.py && chmod +x rpcauth.py
+PASSWORD=$(./rpcauth.py litecoin)
+
+sed -i -e "s/{{RPC_PASS}}/$PASSWORD/g" /etc/litecoin/litecoin.conf
 
 rm -f /root/init-litecoin.sh
 EOF

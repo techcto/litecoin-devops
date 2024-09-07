@@ -60,6 +60,16 @@
             "destination": "/tmp/Litecoin.zip"
         },
         {
+            "type": "file",
+            "source": "bin/litecoin.conf",
+            "destination": "/tmp/litecoin.conf"
+        },
+        {
+            "type": "file",
+            "source": "bin/litecoind.service",
+            "destination": "/tmp/litecoind.service"
+        },
+        {
             "type": "shell",
             "inline": [
                 "ls -al /tmp",
