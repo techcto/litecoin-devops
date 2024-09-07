@@ -1,1 +1,3 @@
 dist/*
+devops/ami/files/*
+*.zip
