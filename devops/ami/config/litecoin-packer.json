@@ -1,0 +1,75 @@
+{
+    "variables": {
+        "aws_region": "{{env `AWS_REGION`}}",
+        "aws_ami_name": "litecoin-v{{env `TAG_RELEASE`}}",
+        "owner_account_id": "{{env `OWNER_ACCOUNT_ID`}}",
+        "guest1_account_id": "{{env `GUEST1_ACCOUNT_ID`}}",
+        "guest2_account_id": "{{env `GUEST2_ACCOUNT_ID`}}"
+    },
+
+    "builders": [{
+        "type": "amazon-ebs",
+        "region": "{{user `aws_region`}}",
+        "profile": "{{ user `aws_profile`}}",
+        "instance_type": "t2.large",
+        "ssh_username": "ubuntu",
+        "ami_name": "{{user `aws_ami_name`}}",
+        "ami_description": "Litecoin Pro",
+        "associate_public_ip_address": "true",
+        "source_ami_filter": {
+            "filters": {
+                "virtualization-type": "hvm",
+                "name": "*ubuntu-jammy-22.04-amd64-server-*",
+                "root-device-type": "ebs"
+            },
+            "owners": [
+                "amazon"
+            ],
+            "most_recent": true
+        },
+        "aws_polling": {
+            "delay_seconds": 120,
+            "max_attempts": 60
+        },
+        "launch_block_device_mappings": [
+            {
+                "device_name": "/dev/sda1",
+                "volume_size": 80,
+                "delete_on_termination": true
+            }
+        ],
+        "ami_block_device_mappings": [
+            {
+                "device_name": "/dev/sda1",
+                "volume_size": 80,
+                "delete_on_termination": true,
+                "volume_type": "standard"
+            }
+        ]
+    }],
+
+    "provisioners": [
+        {
+            "type": "file",
+            "source": "scripts",
+            "destination": "/tmp"
+        },
+        {
+            "type": "file",
+            "source": "files/Litecoin.zip",
+            "destination": "/tmp/Litecoin.zip"
+        },
+        {
+            "type": "shell",
+            "inline": [
+                "ls -al /tmp",
+                "sudo chmod 700 /tmp/scripts/*",
+                "sudo /tmp/scripts/install-base.sh",
+                "sudo /tmp/scripts/install-litecoin.sh",
+                "sudo mv /tmp/scripts/litecoin.sh /root/litecoin",
+                "sudo /tmp/scripts/configure-litecoin-ami.sh",
+                "sudo /tmp/scripts/cleanup.sh"
+            ]
+        }
+    ]
+}

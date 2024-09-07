@@ -1,0 +1,14 @@
+services:
+  litecoin:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: litecoin-node
+    volumes:
+      - ./litecoindata:/home/litecoin/.litecoin
+    ports:
+      - "9333:9333"
+    restart: always
+    environment:
+      - LITECOIN_RPCUSER=yourusername
+      - LITECOIN_RPCPASSWORD=yourpassword

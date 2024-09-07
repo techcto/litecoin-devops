@@ -1,0 +1,12 @@
+services: 
+  bundle:
+    build:
+      target: bundle
+      context: .
+      dockerfile: ./devops/bundle/Dockerfile
+      args:
+        - APP_ENV=prod
+        - SHARE=/var/www/html/dist
+        - SOLODEV_RELEASE=${SOLODEV_RELEASE}
+    volumes:
+      - ./dist:/var/www/html/dist
