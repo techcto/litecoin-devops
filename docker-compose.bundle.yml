@@ -1,7 +1,6 @@
 services: 
   bundle:
     build:
-      target: bundle
       context: .
       dockerfile: ./devops/bundle/Dockerfile
       args:
