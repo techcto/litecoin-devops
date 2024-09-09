@@ -1,0 +1,34 @@
+[
+  {
+    "ParameterKey": "VPCID",
+    "ParameterValue": "vpc-2f13cf54"
+  }, 
+  {
+    "ParameterKey": "PublicSubnet1ID",
+    "ParameterValue": "subnet-812c73ae"
+  }, 
+  {
+    "ParameterKey": "PublicSubnet2ID",
+    "ParameterValue": "subnet-ef11f6a5"
+  }, 
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "docker1"
+  },
+  {
+    "ParameterKey": "InstanceType",
+    "ParameterValue": "t2.large"
+  }, 
+  {
+    "ParameterKey": "DeletionPolicy",
+    "ParameterValue": "Delete"
+  },
+  {
+    "ParameterKey": "AdminUser",
+    "ParameterValue": "solodev"
+  }, 
+  {
+    "ParameterKey": "AdminPassword",
+    "ParameterValue": "password"
+  }
+]

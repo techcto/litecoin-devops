@@ -6,6 +6,7 @@ args=("$@")
 export TAG_RELEASE=$(date +"%y.%m%d.%S")
 export SOLODEV_RELEASE=$TAG_RELEASE
 export AWS_PROFILE=develop
+DATE=$(date +%d%H%M)
 
 init(){
     git submodule init
@@ -19,7 +20,7 @@ bundle(){
 
 ami(){
     cd devops/ami
-    rm -Rf files/Litecoin.zip
+    rm -Rf files/Litecoin.zip litecoin-manifest.json
     cp ../../dist/litecoin.zip files/Litecoin.zip
     ./build.sh config litecoin-packer.json
 }
@@ -42,6 +43,24 @@ build(){
     ./configure --with-incompatible-bdb
     make
     make install
+}
+
+cft(){
+    export AWS_PROFILE=develop
+    cd devops/cloudformation
+    cp -f litecoin-pro-linux.yaml.dst litecoin-pro-linux.yaml
+    AMI_LC=$(jq -r '.builds[0].artifact_id|split(":")[1]' ../ami/litecoin-manifest.json )
+    sed -i "s/{CustomAMI}/$AMI_LC/g" litecoin-pro-linux.yaml
+    sed -i "s/{SOLODEV_RELEASE}/$SOLODEV_RELEASE/g" litecoin-pro-linux.yaml
+    aws s3 cp litecoin-pro-linux.yaml s3://litecoin-pro/cloudformation/litecoin-pro-linux.yaml --acl public-read
+
+    LC=1
+    if [ $LC == 1 ]; then
+        echo "Create Litecoin Pro"
+        aws cloudformation create-stack --disable-rollback --stack-name lc-tmp-${DATE} --disable-rollback --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --parameters file://params/litecoin-pro-linux.json \
+            --template-url https://s3.amazonaws.com/litecoin-pro/cloudformation/litecoin-pro-linux.yaml
+    fi
 }
 
 $*

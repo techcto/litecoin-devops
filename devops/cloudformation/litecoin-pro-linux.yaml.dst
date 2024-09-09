@@ -1,0 +1,265 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: >
+
+  Litecoin Pro {SOLODEV_RELEASE} on AWS
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Network Settings"
+        Parameters:
+          - VPCID
+          - PublicSubnet1ID
+          - PublicSubnet2ID
+          - InstanceType
+          - KeyName
+          - HostVolumeSize
+          - DeletionPolicy
+          - StorageEncrypted
+          - AmiAlias
+      -
+        Label:
+          default: "Litecoin Settings"
+        Parameters:
+          - AdminUser
+          - AdminPassword
+      -
+        Label:
+          default: "Optional: SSO"
+        Parameters:
+          - SsoBaseUrl
+          - SsoClientId
+          - SsoClientSecret
+          - SsoRealm
+
+Parameters:
+  VPCID:
+    Type: AWS::EC2::VPC::Id
+    Description: Choose which VPC the Application should be deployed to
+    AllowedPattern: .+
+    ConstraintDescription: Please choose VPC
+
+  PublicSubnet1ID:
+    Type: "AWS::EC2::Subnet::Id"
+    Description: The ID of the public subnet in Availability Zone 1 in your existing VPC (e.g., subnet-a0246dcd)
+    Default: ""
+
+  PublicSubnet2ID:
+    Type: "AWS::EC2::Subnet::Id"
+    Description: The ID of the public subnet in Availability Zone 2 in your existing VPC (e.g., subnet-b1236eea)
+    Default: ""
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    Type: "AWS::EC2::KeyPair::KeyName"
+    AllowedPattern: .+
+    ConstraintDescription: Please choose EC2 KeyPair
+
+  InstanceType:
+    Type: String
+    Default: t2.large
+    AllowedValues:
+      [
+        t2.small,
+        t2.medium,
+        t2.large,
+        m3.medium,
+        m3.large,
+        m3.xlarge,
+        m3.2xlarge,
+      ]
+    ConstraintDescription: Please choose a valid instance type.
+
+  DeletionPolicy:
+    Default: 'Delete'
+    Type: String
+    Description: 'Experimental: Deletion Policy (Retain, Delete, Snapshot)'
+
+  StorageEncrypted:
+    Default: 'true'
+    Description: Enable encryption for both Database (RDS) and Filesystem (EFS)
+    Type: String
+    AllowedValues:
+    - 'true'
+    - 'false'
+    ConstraintDescription: must be either true or false.
+
+  AdminUser:
+    Description: The litecoin admin username
+    Type: String
+    Default: 'litecoin'
+    AllowedPattern: .+
+    ConstraintDescription: Please set admin username
+
+  AdminPassword:
+    NoEcho: true
+    Description: The litecoin admin password
+    Type: String
+    MinLength: 1
+    MaxLength: 41
+    AllowedPattern: .+
+    ConstraintDescription: Please set admin password
+
+  HostVolumeSize:
+    Description: Size in GB of root volume
+    Type: String
+    Default: "256"
+    AllowedValues:
+      - "64"
+      - "128"
+      - "256"
+      - "512"
+      - "1024"
+      - "2048"
+      - "4096"
+
+  AmiAlias:
+    Description: AMI alias
+    Type: 'String'
+    Default: '/aws/service/marketplace/prod-jquf35j7xh5aq/{SOLODEV_RELEASE}'
+
+  CustomAMI:
+    Default: '{CustomAMI}'
+    Type: String
+
+  SsoBaseUrl:
+    Description: Base URL of your OpenID Server
+    Default: ''
+    Type: String
+
+  SsoClientId:
+    Default: ''
+    Type: String
+
+  SsoClientSecret:
+    Default: ''
+    Type: String
+
+  SsoRealm:
+    Default: ''
+    Type: String
+
+Conditions:
+
+  CustomAMI: !Equals [ !Ref CustomAMI, "{CustomAMI}" ]
+
+Resources:
+
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join ['-', [!Ref 'AWS::StackName', 'litecoin']]
+      AccessControl: 'BucketOwnerFullControl'
+      Tags:
+          -
+            Key: 'Name'
+            Value: !Join ['-', [!Ref 'AWS::StackName', 'S3']]
+    DeletionPolicy: Delete
+
+  WebServerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Enable access on port 80 and 443
+      VpcId: !Ref VPCID
+
+  LitecoinInstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: /
+      Policies:
+        - 
+          PolicyName: NodePolicy
+          PolicyDocument:
+              Statement:
+                  - Sid: ListObjectsInBucket
+                    Effect: Allow
+                    Action:
+                      - s3:ListBucket
+                    Resource: !Join 
+                      - ''
+                      - - 'arn:aws:s3:::'
+                        - !Ref S3Bucket
+                  - Sid: AllObjectActions
+                    Effect: Allow
+                    Action:
+                      - s3:GetObject
+                      - s3:PutObject
+                      - s3:DeleteObject
+                    Resource: !Join 
+                      - ''
+                      - - 'arn:aws:s3:::'
+                        - !Ref S3Bucket
+                        - /*
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+
+  LitecoinInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: /
+      Roles:
+        - !Ref LitecoinInstanceRole
+
+  WebServerInstance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !If [ CustomAMI, !Ref CustomAMI, !Sub "resolve:ssm:${AmiAlias}" ]
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            echo "AdminUser=${AdminUser}" > /root/litecoin.env
+            echo "AdminPassword=${AdminPassword}" >> /root/litecoin.env
+            echo "SSO_BASE_URL=${SSO_BASE_URL}" >> /root/litecoin.env
+            echo "SSO_CLIENT_ID=${SSO_CLIENT_ID}" >> /root/litecoin.env
+            echo "SSO_CLIENT_SECRET=${SSO_CLIENT_SECRET}" >> /root/litecoin.env
+            echo "SSO_REALM=${SSO_REALM}" >> /root/litecoin.env
+          - AdminUser: !Ref AdminUser
+            AdminPassword: !Ref AdminPassword
+            SSO_BASE_URL: !Ref SsoBaseUrl
+            SSO_CLIENT_ID: !Ref SsoClientId
+            SSO_CLIENT_SECRET: !Ref SsoClientSecret
+            SSO_REALM: !Ref SsoRealm
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref WebServerSecurityGroup
+          SubnetId: !Ref PublicSubnet1ID
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: !Ref HostVolumeSize
+            DeleteOnTermination: "false"
+      Tags:
+        - Key: Name
+          Value: !Join
+            - " - "
+            - - !Ref "AWS::StackName"
+              - Litecoin
+      IamInstanceProfile: !Ref LitecoinInstanceProfile
+
+Outputs:
+  AdminUrl:
+    Description: Dedicated DNS.  Point your DNS to this name.
+    Value: !GetAtt WebServerInstance.PublicDnsName
+  AdminUsername:
+    Description: Litecoin admin username.
+    Value: !Ref AdminUser
+  AdminPassword:
+    Description: Litecoin password.
+    Value: !Ref AdminPassword

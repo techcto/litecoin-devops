@@ -34,6 +34,6 @@ make
 make install
 
 #Install Service
-cp -f /tmp/litecoin.conf /etc/litecoin/litecoin.conf
-cp -f /tmp/litecoind.service /etc/systemd/system/litecoind.service
+mv -f /tmp/litecoin.conf /etc/litecoin/litecoin.conf
+mv -f /tmp/litecoind.service /etc/systemd/system/litecoind.service
 systemctl enable litecoind
